@@ -1,0 +1,87 @@
+// -*- mode: groovy; -*-
+
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.0.2'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = "1.7"
+    targetCompatibility = "1.7"
+}
+
+idea {
+    module {
+        downloadJavadoc = true
+        downloadSources = true
+        testSourceDirs += file('src/test/ruby')
+    }
+}
+
+version = '1.0.0-SNAPSHOT'
+
+configurations { rspec }
+
+repositories {
+    maven { url 'http://deux.gemjars.org' }
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.jruby', name: 'jruby', version: '1.7.16'
+    compile group: 'com.couchbase.client', name: 'core-io', version: '1.0.1-SNAPSHOT'
+    compile group: 'com.netflix.rxjava', name: 'rxjava-jruby', version: '0.20.6'
+    rspec group: 'org.jruby', name: 'jruby-complete', version: '1.7.16'
+    rspec group: 'org.rubygems', name: 'rspec', version: '2.14.1'
+    rspec group: 'org.rubygems', name: 'multi_json', version: '1.8.1'
+}
+
+shadowJar {
+    mergeServiceFiles()
+    dependencies {
+        include(dependency(group: 'com.couchbase.client', name: 'core-io', version: '1.0.1-SNAPSHOT'))
+        include(dependency(group: 'io.reactivex', name:'rxjava', version: '1.0.0-rc.8'))
+    }
+}
+
+def getVersionName() {
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'describe', '--always', '--dirty'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    } catch (e) {
+        return "unknown"
+    }
+}
+
+ext {
+    gitVersion = getVersionName()
+}
+
+task spec(type: JavaExec, dependsOn: 'jar') {
+    main 'org.jruby.Main'
+    classpath = sourceSets.test.runtimeClasspath + configurations.rspec
+    args = ['classpath:bin/rspec',
+            '-I', file('src/test/ruby').path,
+            '-r', 'spec_helper',
+            'src/test/ruby/*_spec.rb']
+}
+
+jar.manifest.mainAttributes(
+        'Implementation-Title': 'Couchbase JRuby Client',
+        'Implementation-Version': ext.gitVersion,
+        'Implementation-Vendor': 'Couchbase, Inc.',
+        'Specification-Title': 'com.couchbase.client.jruby',
+        'Specification-Version': version,
+        'Specification-Vendor': 'Couchbase, Inc.'
+)
