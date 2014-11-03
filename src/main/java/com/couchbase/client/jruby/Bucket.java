@@ -24,6 +24,7 @@ package com.couchbase.client.jruby;
 
 import com.couchbase.client.core.ClusterFacade;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
+import com.couchbase.client.core.lang.Tuple2;
 import com.couchbase.client.core.message.ResponseStatus;
 import com.couchbase.client.core.message.cluster.CloseBucketRequest;
 import com.couchbase.client.core.message.cluster.CloseBucketResponse;
@@ -34,7 +35,6 @@ import com.couchbase.client.core.message.observe.Observe;
 import com.couchbase.client.core.message.view.ViewQueryRequest;
 import com.couchbase.client.core.message.view.ViewQueryResponse;
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
-import com.couchbase.client.deps.io.netty.buffer.Unpooled;
 import com.couchbase.client.deps.io.netty.util.CharsetUtil;
 import com.couchbase.client.jruby.env.CouchbaseEnvironment;
 import com.couchbase.client.jruby.error.CASMismatchException;
@@ -66,6 +66,7 @@ public class Bucket extends RubyObject {
     private final String password;
     private final String bucket;
     private final CouchbaseEnvironment environment;
+    private final Transcoder transcoder;
     private final RubyClass documentClass;
     private final RubyClass bucketManagerClass;
     private final RubyClass viewResultClass;
@@ -132,6 +133,7 @@ public class Bucket extends RubyObject {
         viewResultClass = runtime.getModule("Couchbase").getClass("ViewResult");
         bucketManagerClass = runtime.getModule("Couchbase").getClass("BucketManager");
         multiJsonModule = runtime.getModule("MultiJson");
+        transcoder = new Transcoder(documentClass, multiJsonModule);
     }
 
     @JRubyMethod(name = "bucket_manager")
@@ -149,7 +151,6 @@ public class Bucket extends RubyObject {
     }
 
     private Observable<IRubyObject> get(final ThreadContext context, final String id) {
-        final Ruby runtime = context.getRuntime();
         return core
                 .<GetResponse>send(new GetRequest(id, bucket))
                 .filter(new Func1<GetResponse, Boolean>() {
@@ -161,8 +162,7 @@ public class Bucket extends RubyObject {
                 .map(new Func1<GetResponse, IRubyObject>() {
                     @Override
                     public IRubyObject call(final GetResponse response) {
-                        /* FIXME: handle response.flags() and response.status() */
-                        return new Document(runtime, documentClass, id, response.cas(), 0, response.content().toString(CharsetUtil.UTF_8));
+                        return newDocument(context, id, response.cas(), 0, response.content(), response.flags());
                     }
                 });
     }
@@ -187,7 +187,6 @@ public class Bucket extends RubyObject {
     }
 
     public Observable<IRubyObject> getFromReplica(final ThreadContext context, final String id, final int replica) {
-        final Ruby runtime = context.getRuntime();
         Observable<GetResponse> incoming;
         if (replica == -1) {
             incoming = core
@@ -229,8 +228,7 @@ public class Bucket extends RubyObject {
                 .map(new Func1<GetResponse, IRubyObject>() {
                     @Override
                     public IRubyObject call(final GetResponse response) {
-                        /* FIXME: handle response.flags() and response.status() */
-                        return new Document(runtime, documentClass, id, response.cas(), 0, response.content().toString(CharsetUtil.UTF_8));
+                        return newDocument(context, id, response.cas(), 0, response.content(), response.flags());
                     }
                 });
     }
@@ -263,16 +261,16 @@ public class Bucket extends RubyObject {
     private Observable<IRubyObject> insert(final ThreadContext context, final Document document,
                                            final Observe.PersistTo persistTo,
                                            final Observe.ReplicateTo replicateTo) {
-        final Ruby runtime = context.getRuntime();
+        final Tuple2<ByteBuf, Integer> blob = transcoder.dump(context, document);
         final Observable<IRubyObject> observable = core
-                .<InsertResponse>send(new InsertRequest(document.id(context), Unpooled.copiedBuffer(document.content(context), CharsetUtil.UTF_8), document.expiry(context), 0, bucket))
+                .<InsertResponse>send(new InsertRequest(document.id(context), blob.value1(), document.expiry(context), blob.value2(), bucket))
                 .flatMap(new Func1<InsertResponse, Observable<IRubyObject>>() {
                     @Override
                     public Observable<IRubyObject> call(InsertResponse response) {
                         if (response.status() == ResponseStatus.EXISTS) {
                             return Observable.error(new DocumentAlreadyExistsException());
                         }
-                        return Observable.just((IRubyObject) new Document(runtime, documentClass, document.id(context), response.cas(), document.expiry(context), document.content(context)));
+                        return Observable.just(newDocument(context, document.id(context), response.cas(), document.expiry(context), document.content(context)));
                     }
                 });
         if (replicateTo == Observe.ReplicateTo.NONE && persistTo == Observe.PersistTo.NONE) {
@@ -328,16 +326,16 @@ public class Bucket extends RubyObject {
     private Observable<IRubyObject> upsert(final ThreadContext context, final Document document,
                                            final Observe.PersistTo persistTo,
                                            final Observe.ReplicateTo replicateTo) {
-        final Ruby runtime = context.getRuntime();
+        final Tuple2<ByteBuf, Integer> blob = transcoder.dump(context, document);
         final Observable<IRubyObject> observable = core
-                .<UpsertResponse>send(new UpsertRequest(document.id(context), Unpooled.copiedBuffer(document.content(context), CharsetUtil.UTF_8), document.expiry(context), 0, bucket))
+                .<UpsertResponse>send(new UpsertRequest(document.id(context), blob.value1(), document.expiry(context), blob.value2(), bucket))
                 .flatMap(new Func1<UpsertResponse, Observable<IRubyObject>>() {
                     @Override
                     public Observable<IRubyObject> call(UpsertResponse response) {
                         if (response.status() == ResponseStatus.EXISTS) {
                             return Observable.error(new CASMismatchException());
                         }
-                        return Observable.just((IRubyObject) new Document(runtime, documentClass, document.id(context), response.cas(), document.expiry(context), document.content(context)));
+                        return Observable.just(newDocument(context, document.id(context), response.cas(), document.expiry(context), document.content(context)));
                     }
                 });
 
@@ -394,9 +392,9 @@ public class Bucket extends RubyObject {
     private Observable<IRubyObject> replace(final ThreadContext context, final Document document,
                                             final Observe.PersistTo persistTo,
                                             final Observe.ReplicateTo replicateTo) {
-        final Ruby runtime = context.getRuntime();
+        final Tuple2<ByteBuf, Integer> blob = transcoder.dump(context, document);
         Observable<IRubyObject> observable = core
-                .<ReplaceResponse>send(new ReplaceRequest(document.id(context), Unpooled.copiedBuffer(document.content(context), CharsetUtil.UTF_8), document.cas(context), document.expiry(context), 0, bucket))
+                .<ReplaceResponse>send(new ReplaceRequest(document.id(context), blob.value1(), document.cas(context), document.expiry(context), blob.value2(), bucket))
                 .flatMap(new Func1<ReplaceResponse, Observable<IRubyObject>>() {
                     @Override
                     public Observable<IRubyObject> call(ReplaceResponse response) {
@@ -406,7 +404,7 @@ public class Bucket extends RubyObject {
                         if (response.status() == ResponseStatus.EXISTS) {
                             return Observable.error(new CASMismatchException());
                         }
-                        return Observable.just((IRubyObject) new Document(runtime, documentClass, document.id(context), response.cas(), document.expiry(context), document.content(context)));
+                        return Observable.just(newDocument(context, document.id(context), response.cas(), document.expiry(context), document.content(context)));
                     }
                 });
 
@@ -467,7 +465,7 @@ public class Bucket extends RubyObject {
                 .flatMap(new Func1<CounterResponse, Observable<IRubyObject>>() {
                     @Override
                     public Observable<IRubyObject> call(CounterResponse response) {
-                        return Observable.just((IRubyObject) new Document(runtime, documentClass, id, response.cas(), expiry, Long.toString(response.value())));
+                        return Observable.just(newDocument(context, id, response.cas(), expiry, runtime.newFixnum(response.value())));
                     }
                 });
     }
@@ -482,7 +480,6 @@ public class Bucket extends RubyObject {
     }
 
     private Observable<IRubyObject> getAndTouch(final ThreadContext context, final String id, int expiry) {
-        final Ruby runtime = context.getRuntime();
         return core
                 .<GetResponse>send(new GetRequest(id, bucket, false, true, expiry))
                 .filter(new Func1<GetResponse, Boolean>() {
@@ -494,8 +491,7 @@ public class Bucket extends RubyObject {
                 .map(new Func1<GetResponse, IRubyObject>() {
                     @Override
                     public IRubyObject call(final GetResponse response) {
-                        /* FIXME: handle response.flags() and response.status() */
-                        return new Document(runtime, documentClass, id, response.cas(), 0, response.content().toString(CharsetUtil.UTF_8));
+                        return newDocument(context, id, response.cas(), 0, response.content(), response.flags());
                     }
                 });
     }
@@ -511,7 +507,6 @@ public class Bucket extends RubyObject {
     }
 
     private Observable<IRubyObject> getAndLock(final ThreadContext context, final String id, int lockTime) {
-        final Ruby runtime = context.getRuntime();
         return core
                 .<GetResponse>send(new GetRequest(id, bucket, true, false, lockTime))
                 .filter(new Func1<GetResponse, Boolean>() {
@@ -523,8 +518,7 @@ public class Bucket extends RubyObject {
                 .map(new Func1<GetResponse, IRubyObject>() {
                     @Override
                     public IRubyObject call(final GetResponse response) {
-                        /* FIXME: handle response.flags() and response.status() */
-                        return new Document(runtime, documentClass, id, response.cas(), 0, response.content().toString(CharsetUtil.UTF_8));
+                        return newDocument(context, id, response.cas(), 0, response.content(), response.flags());
                     }
                 });
     }
@@ -611,16 +605,16 @@ public class Bucket extends RubyObject {
     private Observable<IRubyObject> append(final ThreadContext context, final Document document,
                                            final Observe.PersistTo persistTo,
                                            final Observe.ReplicateTo replicateTo) {
-        final Ruby runtime = context.getRuntime();
+        final Tuple2<ByteBuf, Integer> blob = transcoder.dump(context, document);
         Observable<IRubyObject> observable = core
-                .<AppendResponse>send(new AppendRequest(document.id(context), document.cas(context), Unpooled.copiedBuffer(document.content(context), CharsetUtil.UTF_8), bucket))
+                .<AppendResponse>send(new AppendRequest(document.id(context), document.cas(context), blob.value1(), bucket))
                 .flatMap(new Func1<AppendResponse, Observable<IRubyObject>>() {
                     @Override
                     public Observable<IRubyObject> call(AppendResponse response) {
                         if (response.status() == ResponseStatus.FAILURE) {
                             return Observable.error(new DocumentDoesNotExistException());
                         }
-                        return Observable.just((IRubyObject) new Document(runtime, documentClass, document.id(context), response.cas(), document.expiry(context), document.content(context)));
+                        return Observable.just(newDocument(context, document.id(context), response.cas(), document.expiry(context), document.content(context)));
                     }
                 });
 
@@ -677,16 +671,16 @@ public class Bucket extends RubyObject {
     private Observable<IRubyObject> prepend(final ThreadContext context, final Document document,
                                             final Observe.PersistTo persistTo,
                                             final Observe.ReplicateTo replicateTo) {
-        final Ruby runtime = context.getRuntime();
+        final Tuple2<ByteBuf, Integer> blob = transcoder.dump(context, document);
         Observable<IRubyObject> observable = core
-                .<PrependResponse>send(new PrependRequest(document.id(context), document.cas(context), Unpooled.copiedBuffer(document.content(context), CharsetUtil.UTF_8), bucket))
+                .<PrependResponse>send(new PrependRequest(document.id(context), document.cas(context), blob.value1(), bucket))
                 .flatMap(new Func1<PrependResponse, Observable<IRubyObject>>() {
                     @Override
                     public Observable<IRubyObject> call(PrependResponse response) {
                         if (response.status() == ResponseStatus.FAILURE) {
                             return Observable.error(new DocumentDoesNotExistException());
                         }
-                        return Observable.just((IRubyObject) new Document(runtime, documentClass, document.id(context), response.cas(), document.expiry(context), document.content(context)));
+                        return Observable.just(newDocument(context, document.id(context), response.cas(), document.expiry(context), document.content(context)));
                     }
                 });
 
@@ -743,7 +737,6 @@ public class Bucket extends RubyObject {
     private Observable<IRubyObject> remove(final ThreadContext context, final Document document,
                                            final Observe.PersistTo persistTo,
                                            final Observe.ReplicateTo replicateTo) {
-        final Ruby runtime = context.getRuntime();
         Observable<IRubyObject> observable = core
                 .<RemoveResponse>send(new RemoveRequest(document.id(context), document.cas(context), bucket))
                 .flatMap(new Func1<RemoveResponse, Observable<IRubyObject>>() {
@@ -752,7 +745,7 @@ public class Bucket extends RubyObject {
                         if (response.status() == ResponseStatus.FAILURE) {
                             return Observable.error(new DocumentDoesNotExistException());
                         }
-                        return Observable.just((IRubyObject) new Document(runtime, documentClass, document.id(context), document.cas(context), document.expiry(context), document.content(context)));
+                        return Observable.just(newDocument(context, document.id(context), response.cas(), document.expiry(context), document.content(context)));
                     }
                 });
 
@@ -981,5 +974,16 @@ public class Bucket extends RubyObject {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException("Could not prepare view argument: " + e);
         }
+    }
+
+    private IRubyObject newDocument(ThreadContext context, String id, long cas, int i, IRubyObject content) {
+        final Ruby runtime = context.getRuntime();
+        return new Document(runtime, documentClass, id, cas, 0, content);
+    }
+
+    private IRubyObject newDocument(ThreadContext context, String id, long cas, int i, ByteBuf content, int flags) {
+        final Ruby runtime = context.getRuntime();
+        return new Document(runtime, documentClass, id, cas, 0,
+                transcoder.load(context, content.toString(CharsetUtil.UTF_8), flags));
     }
 }

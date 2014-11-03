@@ -6,9 +6,11 @@ describe Couchbase::Bucket, :cluster => true do
     # function (doc, meta) { if (doc.type == "user") emit(doc.age, null) }
     # _count
     1000.times do |id|
-      doc = Couchbase::Document.new(
-          :id => "user-#{id}",
-          :content => %{{"type": "user", "name": "Mr. Foo Bar #{id}", "age": #{id % 100}, "active": #{(id % 2) == 0}}})
+      doc = Couchbase::Document.new(:id => "user-#{id}",
+          :content => {'type' => 'user',
+                       'name' => "Mr. Foo Bar #{id}",
+                       'age' => id % 100,
+                       'active' => (id % 2) == 0})
       bucket.insert(doc)
     end
   end
@@ -21,9 +23,9 @@ describe Couchbase::Bucket, :cluster => true do
     expect(result).to be_success
     expect(result.debug).to be_nil
     expect(result.errors).to be_nil
-    expect(result.info).to eq('{"total_rows":1000}')
+    expect(result.info).to eq({'total_rows' => 1000})
     expect(result.rows).to have(1000).items
-    expect(result.rows).to include('{"id":"user-0","key":"Mr. Foo Bar 0","value":null}')
+    expect(result.rows).to include({'id' => 'user-0', 'key' => 'Mr. Foo Bar 0', 'value'=> nil})
   end
 
   specify 'reduced view' do
@@ -32,9 +34,9 @@ describe Couchbase::Bucket, :cluster => true do
     expect(result).to be_success
     expect(result.debug).to be_nil
     expect(result.errors).to be_nil
-    expect(result.info).to eq('')
+    expect(result.info).to be_nil
     expect(result.rows).to have(1).item
-    expect(result.rows.first).to eq('{"key":null,"value":1000}')
+    expect(result.rows).to include({'key' => nil, 'value'=> 1000})
   end
 
   specify 'reduced view with manually disabled reduce' do
@@ -43,9 +45,9 @@ describe Couchbase::Bucket, :cluster => true do
     expect(result).to be_success
     expect(result.debug).to be_nil
     expect(result.errors).to be_nil
-    expect(result.info).to eq('{"total_rows":1000}')
+    expect(result.info).to eq({'total_rows' => 1000})
     expect(result.rows).to have(1000).items
-    expect(result.rows).to include('{"id":"user-0","key":0,"value":null}')
+    expect(result.rows).to include({'id' => 'user-0', 'key' => 0, 'value'=> nil})
   end
 
   specify 'result when no rows matching the query' do
@@ -54,7 +56,7 @@ describe Couchbase::Bucket, :cluster => true do
     expect(result).to be_success
     expect(result.debug).to be_nil
     expect(result.errors).to be_nil
-    expect(result.info).to eq('{"total_rows":1000}')
+    expect(result.info).to eq({'total_rows' => 1000})
     expect(result.rows).to have(0).items
   end
 
@@ -64,8 +66,8 @@ describe Couchbase::Bucket, :cluster => true do
     expect(result).to be_success
     expect(result.debug).to be_nil
     expect(result.errors).to be_nil
-    expect(result.info).to eq('{"total_rows":1000}')
+    expect(result.info).to eq({'total_rows' => 1000})
     expect(result.rows).to have(1).items
-    expect(result.rows).to include('{"id":"user-0","key":"Mr. Foo Bar 0","value":null}')
+    expect(result.rows).to include({'id' => 'user-0', 'key' => 'Mr. Foo Bar 0', 'value'=> nil})
   end
 end

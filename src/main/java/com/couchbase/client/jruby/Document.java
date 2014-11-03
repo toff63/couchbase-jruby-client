@@ -37,31 +37,36 @@ public class Document extends RubyObject {
     private final RubySymbol ivContent;
     private final RubySymbol ivCas;
     private final RubySymbol ivExpiry;
+    private final RubySymbol ivTranscode;
     private final RubySymbol symId;
     private final RubySymbol symContent;
     private final RubySymbol symCas;
     private final RubySymbol symExpiry;
+    private final RubySymbol symTranscode;
 
     public Document(Ruby runtime, RubyClass metaClass) {
         this(runtime, metaClass, null, 0, 0, null);
     }
 
-    public Document(Ruby runtime, RubyClass metaClass, String id, long cas, int expiry, String content) {
+    public Document(Ruby runtime, RubyClass metaClass, String id, long cas, int expiry, IRubyObject content) {
         super(runtime, metaClass);
         ivId = runtime.newSymbol("@id");
         ivContent = runtime.newSymbol("@content");
         ivCas = runtime.newSymbol("@cas");
         ivExpiry = runtime.newSymbol("@expiry");
+        ivTranscode = runtime.newSymbol("@transcode");
         symId = runtime.newSymbol("id");
         symContent = runtime.newSymbol("content");
         symCas = runtime.newSymbol("cas");
         symExpiry = runtime.newSymbol("expiry");
+        symTranscode = runtime.newSymbol("transcode");
         initialize(runtime.getCurrentContext(),
                 new IRubyObject[]{
                         id == null ? runtime.getNil() : RubyString.newString(runtime, id),
-                        content == null ? runtime.getNil() : RubyString.newString(runtime, content),
+                        content == null ? runtime.getNil() : content,
                         RubyFixnum.newFixnum(runtime, cas),
-                        RubyFixnum.newFixnum(runtime, expiry)
+                        RubyFixnum.newFixnum(runtime, expiry),
+                        runtime.getTrue()
                 });
     }
 
@@ -82,6 +87,9 @@ public class Document extends RubyObject {
             if (attrs.containsKey(symExpiry)) {
                 instance_variable_set(ivExpiry, attrs.op_aref(context, symExpiry));
             }
+            if (attrs.containsKey(symTranscode)) {
+                instance_variable_set(ivTranscode, attrs.op_aref(context, symTranscode));
+            }
         } else {
             if (args.length > 0) {
                 instance_variable_set(ivId, args[0]);
@@ -94,6 +102,9 @@ public class Document extends RubyObject {
             }
             if (args.length > 3) {
                 instance_variable_set(ivExpiry, args[3]);
+            }
+            if (args.length > 4) {
+                instance_variable_set(ivTranscode, args[4]);
             }
         }
         return context.nil;
@@ -108,13 +119,8 @@ public class Document extends RubyObject {
         }
     }
 
-    public String content(ThreadContext context) {
-        IRubyObject val = instance_variable_get(context, ivContent);
-        if (val.isNil()) {
-            return null;
-        } else {
-            return val.asJavaString();
-        }
+    public IRubyObject content(ThreadContext context) {
+        return instance_variable_get(context, ivContent);
     }
 
     public long cas(ThreadContext context) {
@@ -133,5 +139,9 @@ public class Document extends RubyObject {
         } else {
             return (int) ((RubyNumeric) val).getLongValue();
         }
+    }
+
+    public boolean transcode(ThreadContext context) {
+        return instance_variable_get(context, ivTranscode).isTrue();
     }
 }

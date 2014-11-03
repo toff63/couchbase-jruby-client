@@ -69,6 +69,7 @@ public class CouchbaseService implements BasicLibraryService {
                         runtime.newSymbol("cas"),
                         runtime.newSymbol("expiry"),
                         runtime.newSymbol("content"),
+                        runtime.newSymbol("transcode"),
                 });
         document.defineAnnotatedMethods(Document.class);
         RubyClass view_result = couchbase.defineClassUnder("ViewResult", runtime.getObject(), new ObjectAllocator() {

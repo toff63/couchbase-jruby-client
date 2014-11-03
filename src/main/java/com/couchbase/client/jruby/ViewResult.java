@@ -52,6 +52,7 @@ public class ViewResult extends RubyObject {
     private final RubySymbol symNotExists;
     private final RubySymbol symRetry;
     private final RubySymbol symSuccess;
+    private final RubyModule multiJsonModule;
 
     public ViewResult(Ruby runtime, RubyClass metaClass) {
         this(runtime, metaClass, ResponseStatus.SUCCESS, null, null, null, null);
@@ -59,6 +60,7 @@ public class ViewResult extends RubyObject {
 
     public ViewResult(Ruby runtime, RubyClass metaClass, ResponseStatus status, String info, List<String> rows, String errors, String debug) {
         super(runtime, metaClass);
+        multiJsonModule = runtime.getModule("MultiJson");
         ivInfo = runtime.newSymbol("@info");
         ivRows = runtime.newSymbol("@rows");
         ivErrors = runtime.newSymbol("@errors");
@@ -79,7 +81,7 @@ public class ViewResult extends RubyObject {
         if (rows != null) {
             rowsAry = runtime.newArray();
             for (String row : rows) {
-                rowsAry.add(runtime.newString(row));
+                rowsAry.add(loadJson(runtime, row));
             }
         }
         RubySymbol statusSym;
@@ -102,13 +104,14 @@ public class ViewResult extends RubyObject {
             default:
                 throw runtime.newArgumentError("unknown status code: " + status);
         }
+
         initialize(runtime.getCurrentContext(),
                 new IRubyObject[]{
                         statusSym,
-                        info == null ? runtime.getNil() : RubyString.newString(runtime, info),
+                        info == null ? runtime.getNil() : loadJson(runtime, info),
                         rows == null ? runtime.getNil() : rowsAry,
-                        errors == null ? runtime.getNil() : RubyString.newString(runtime, errors),
-                        debug == null ? runtime.getNil() : RubyString.newString(runtime, debug)
+                        errors == null ? runtime.getNil() : loadJson(runtime, errors),
+                        debug == null ? runtime.getNil() : loadJson(runtime, debug),
                 });
     }
 
@@ -195,6 +198,14 @@ public class ViewResult extends RubyObject {
             return null;
         } else {
             return val.asJavaString();
+        }
+    }
+
+    private IRubyObject loadJson(Ruby runtime, String blob) {
+        if (blob == null || blob.isEmpty()) {
+            return runtime.getNil();
+        } else {
+            return multiJsonModule.callMethod("load", runtime.newString(blob));
         }
     }
 }
