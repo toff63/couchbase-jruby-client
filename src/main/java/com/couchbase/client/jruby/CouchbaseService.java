@@ -37,8 +37,10 @@ import java.io.IOException;
 public class CouchbaseService implements BasicLibraryService {
     @Override
     public boolean basicLoad(Ruby runtime) throws IOException {
+        if (runtime.getModule("MultiJson") == null) {
+            throw runtime.newRuntimeError("Cannot found MultiJson module");
+        }
         RubyModule couchbase = runtime.defineModule("Couchbase");
-        RubyModule couchbaseError = couchbase.defineModuleUnder("Error");
 
         couchbase.defineClassUnder("Cluster", runtime.getObject(), new ObjectAllocator() {
             public IRubyObject allocate(Ruby ruby, RubyClass rubyClass) {
