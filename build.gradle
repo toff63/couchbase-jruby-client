@@ -3,7 +3,7 @@
 buildscript {
     repositories { jcenter() }
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.0.2'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
     }
 }
 
@@ -12,8 +12,8 @@ apply plugin: 'idea'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 tasks.withType(JavaCompile) {
-    sourceCompatibility = "1.7"
-    targetCompatibility = "1.7"
+    sourceCompatibility = "1.9"
+    targetCompatibility = "1.9"
 }
 
 idea {
@@ -36,7 +36,7 @@ repositories {
 
 dependencies {
     compile group: 'org.jruby', name: 'jruby', version: '1.7.16'
-    compile group: 'com.couchbase.client', name: 'core-io', version: '1.0.1-SNAPSHOT'
+    compile group: 'com.couchbase.client', name: 'core-io', version: '1.0.1'
     compile group: 'com.netflix.rxjava', name: 'rxjava-jruby', version: '0.20.6'
     rspec group: 'org.jruby', name: 'jruby-complete', version: '1.7.16'
     rspec group: 'org.rubygems', name: 'rspec', version: '2.14.1'
