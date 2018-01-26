@@ -81,11 +81,12 @@ public class DefaultCouchbaseEnvironment extends DefaultCoreEnvironment implemen
 
     private DefaultCouchbaseEnvironment(final Builder builder) {
         super(builder);
-        connectTimeout = longPropertyOr("connectTimeout", builder.connectTimeout());
-        kvTimeout = longPropertyOr("kvTimeout", builder.kvTimeout());
-        viewTimeout = longPropertyOr("viewTimeout", builder.viewTimeout());
-        managementTimeout = longPropertyOr("managementTimeout", builder.managementTimeout());
-        disconnectTimeout = longPropertyOr("disconnectTimeout", builder.disconnectTimeout());
+        DefaultCouchbaseEnvironment env = builder.build();
+        connectTimeout = longPropertyOr("connectTimeout", env.connectTimeout());
+        kvTimeout = longPropertyOr("kvTimeout", env.kvTimeout());
+        viewTimeout = longPropertyOr("viewTimeout", env.viewTimeout());
+        managementTimeout = longPropertyOr("managementTimeout", env.managementTimeout());
+        disconnectTimeout = longPropertyOr("disconnectTimeout", env.disconnectTimeout());
     }
 
     /**
@@ -131,7 +132,7 @@ public class DefaultCouchbaseEnvironment extends DefaultCoreEnvironment implemen
         return disconnectTimeout;
     }
 
-    public static class Builder extends DefaultCoreEnvironment.Builder implements CouchbaseEnvironment {
+    public static class Builder extends DefaultCoreEnvironment.Builder {
 
         private long kvTimeout = KV_TIMEOUT;
         private long connectTimeout = CONNECT_TIMEOUT;
@@ -140,44 +141,44 @@ public class DefaultCouchbaseEnvironment extends DefaultCoreEnvironment implemen
         private long disconnectTimeout = DISCONNECT_TIMEOUT;
         private long viewTimeout = VIEW_TIMEOUT;
 
-        @Override
-        public long connectTimeout() {
-            return connectTimeout;
-        }
+//        @Override
+//        public long connectTimeout() {
+//            return connectTimeout;
+//        }
 
         public Builder connectTimeout(long connectTimeout) {
             this.connectTimeout = connectTimeout;
             return this;
         }
 
-        @Override
-        public long disconnectTimeout() {
-            return disconnectTimeout;
-        }
+//        @Override
+//        public long disconnectTimeout() {
+//            return disconnectTimeout;
+//        }
 
         public Builder disconnectTimeout(long disconnectTimeout) {
             this.disconnectTimeout = disconnectTimeout;
             return this;
         }
-        @Override
-        public long kvTimeout() {
-            return kvTimeout;
-        }
+//        @Override
+//        public long kvTimeout() {
+//            return kvTimeout;
+//        }
 
         public Builder kvTimeout(long kvTimeout) {
             this.kvTimeout = kvTimeout;
             return this;
         }
 
-        @Override
-        public long managementTimeout() {
-            return managementTimeout;
-        }
-
-        @Override
-        public long viewTimeout() {
-            return viewTimeout;
-        }
+//        @Override
+//        public long managementTimeout() {
+//            return managementTimeout;
+//        }
+//
+//        @Override
+//        public long viewTimeout() {
+//            return viewTimeout;
+//        }
 
         public Builder managementTimeout(long managementTimeout) {
             this.managementTimeout = managementTimeout;
@@ -194,9 +195,9 @@ public class DefaultCouchbaseEnvironment extends DefaultCoreEnvironment implemen
             return this;
         }
 
-        @Override
-        public String packageNameAndVersion() {
-            return packageNameAndVersion;
-        }
+//        @Override
+//        public String packageNameAndVersion() {
+//            return packageNameAndVersion;
+//        }
     }
 }

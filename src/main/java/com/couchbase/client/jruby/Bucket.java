@@ -34,6 +34,8 @@ import com.couchbase.client.core.message.kv.*;
 import com.couchbase.client.core.message.observe.Observe;
 import com.couchbase.client.core.message.view.ViewQueryRequest;
 import com.couchbase.client.core.message.view.ViewQueryResponse;
+import com.couchbase.client.core.retry.BestEffortRetryStrategy;
+import com.couchbase.client.core.retry.RetryStrategy;
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.deps.io.netty.util.CharsetUtil;
 import com.couchbase.client.jruby.env.CouchbaseEnvironment;
@@ -60,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Sergey Avseyev
  */
+
 @JRubyClass(name = "Couchbase::Bucket")
 public class Bucket extends RubyObject {
     private final ClusterFacade core;
@@ -281,7 +284,7 @@ public class Bucket extends RubyObject {
                 public Observable<IRubyObject> call(final IRubyObject object) {
                     Document doc = (Document) object;
                     return Observe
-                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo)
+                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo, BestEffortRetryStrategy.INSTANCE)
                             .map(new Func1<Boolean, IRubyObject>() {
                                 @Override
                                 public IRubyObject call(Boolean aBoolean) {
@@ -347,7 +350,7 @@ public class Bucket extends RubyObject {
                 public Observable<IRubyObject> call(final IRubyObject object) {
                     Document doc = (Document) object;
                     return Observe
-                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo)
+                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo, BestEffortRetryStrategy.INSTANCE)
                             .map(new Func1<Boolean, IRubyObject>() {
                                 @Override
                                 public IRubyObject call(Boolean aBoolean) {
@@ -416,7 +419,7 @@ public class Bucket extends RubyObject {
                 public Observable<IRubyObject> call(final IRubyObject object) {
                     Document doc = (Document) object;
                     return Observe
-                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo)
+                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo, BestEffortRetryStrategy.INSTANCE)
                             .map(new Func1<Boolean, IRubyObject>() {
                                 @Override
                                 public IRubyObject call(Boolean aBoolean) {
@@ -626,7 +629,7 @@ public class Bucket extends RubyObject {
                 public Observable<IRubyObject> call(final IRubyObject object) {
                     Document doc = (Document) object;
                     return Observe
-                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo)
+                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo, BestEffortRetryStrategy.INSTANCE)
                             .map(new Func1<Boolean, IRubyObject>() {
                                 @Override
                                 public IRubyObject call(Boolean aBoolean) {
@@ -692,7 +695,7 @@ public class Bucket extends RubyObject {
                 public Observable<IRubyObject> call(final IRubyObject object) {
                     Document doc = (Document) object;
                     return Observe
-                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo)
+                            .call(core, bucket, doc.id(context), doc.cas(context), false, persistTo, replicateTo, BestEffortRetryStrategy.INSTANCE)
                             .map(new Func1<Boolean, IRubyObject>() {
                                 @Override
                                 public IRubyObject call(Boolean aBoolean) {
@@ -757,7 +760,7 @@ public class Bucket extends RubyObject {
                 public Observable<IRubyObject> call(final IRubyObject object) {
                     Document doc = (Document) object;
                     return Observe
-                            .call(core, bucket, doc.id(context), doc.cas(context), true, persistTo, replicateTo)
+                            .call(core, bucket, doc.id(context), doc.cas(context), true, persistTo, replicateTo, BestEffortRetryStrategy.INSTANCE)
                             .map(new Func1<Boolean, IRubyObject>() {
                                 @Override
                                 public IRubyObject call(Boolean aBoolean) {
@@ -800,22 +803,23 @@ public class Bucket extends RubyObject {
         final long timeout = environment.viewTimeout();
         final String design = args[0].asJavaString();
         final String view = args[1].asJavaString();
+        final String keys = args[2].asJavaString();
         final StringBuilder query = new StringBuilder();
 
         if (args.length == 3 && args[2] instanceof RubyHash) {
             RubyHash options = (RubyHash) args[2];
             getQueryParams(context, options, query);
         }
-        return query(context, design, view, false, query.toString())
+        return query(context, design, view, false, query.toString(), keys)
                 .timeout(timeout, TimeUnit.MILLISECONDS)
                 .toBlocking()
                 .single();
     }
 
     public Observable<IRubyObject> query(final ThreadContext context, final String design, final String view,
-                                         final boolean isDevelopment, final String query) {
+                                         final boolean isDevelopment, final String query, final String keys) {
         final Ruby runtime = context.getRuntime();
-        final ViewQueryRequest request = new ViewQueryRequest(design, view, isDevelopment, query, bucket, password);
+        final ViewQueryRequest request = new ViewQueryRequest(design, view, isDevelopment, query, bucket, keys, password);
         return core.<ViewQueryResponse>send(request)
                 .flatMap(new Func1<ViewQueryResponse, Observable<IRubyObject>>() {
                     @Override

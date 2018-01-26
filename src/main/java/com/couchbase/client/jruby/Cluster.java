@@ -53,7 +53,9 @@ import java.util.concurrent.TimeUnit;
  */
 @JRubyClass(name = "Couchbase::Cluster")
 public class Cluster extends RubyObject {
-    private final ClusterFacade core;
+
+	private static final long serialVersionUID = 7653239664530223064L;
+	private final ClusterFacade core;
     private final RubyClass bucketClass;
     private final CouchbaseEnvironment environment;
 
@@ -98,7 +100,7 @@ public class Cluster extends RubyObject {
                 .flatMap(new Func1<DisconnectResponse, Observable<Boolean>>() {
                     @Override
                     public Observable<Boolean> call(DisconnectResponse disconnectResponse) {
-                        return environment.shutdown();
+                        return Observable.just(environment.shutdown());
                     }
                 });
     }
