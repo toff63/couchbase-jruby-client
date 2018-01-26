@@ -35,10 +35,10 @@ repositories {
 }
 
 dependencies {
-    compile group: 'org.jruby', name: 'jruby', version: '1.7.16'
-    compile group: 'com.couchbase.client', name: 'core-io', version: '1.0.1'
-    compile group: 'com.netflix.rxjava', name: 'rxjava-jruby', version: '0.20.6'
-    rspec group: 'org.jruby', name: 'jruby-complete', version: '1.7.16'
+    compile group: 'org.jruby', name: 'jruby', version: '9.1.15.0'
+    compile group: 'com.couchbase.client', name: 'core-io', version: '1.5.4'
+//    compile group: 'com.netflix.rxjava', name: 'rxjava-jruby', version: '1.3.3'
+    rspec group: 'org.jruby', name: 'jruby-complete', version: '9.1.15.0'
     rspec group: 'org.rubygems', name: 'rspec', version: '2.14.1'
     rspec group: 'org.rubygems', name: 'multi_json', version: '1.8.1'
 }
