@@ -6,9 +6,30 @@
  * user guide available at https://docs.gradle.org/3.4/userguide/java_library_plugin.html
  */
 
+buildscript {
+  repositories { jcenter() }
+  dependencies {
+    classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
+      classpath 'com.github.jruby-gradle:jruby-gradle-plugin:1.5.0'
+  }
+}
+plugins {
+  id "org.gradle.java"
+    id "com.scuilion.syntastic" version "0.3.8"
+}
+
 // Apply the java-library plugin to add support for Java Library
 apply plugin: 'java-library'
 apply plugin: 'eclipse'
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: "com.github.jruby-gradle.base"
+
+import com.github.jrubygradle.JRubyExec
+
+tasks.withType(JavaCompile) {
+  sourceCompatibility = "1.8"
+  targetCompatibility = "1.8"
+}
 
 // In this section you declare where to find the dependencies of your project
 repositories {
@@ -19,12 +40,20 @@ repositories {
 
 dependencies {
     // This dependency is exported to consumers, that is to say found on their compile classpath.
-    api 'org.apache.commons:commons-math3:3.6.1'
-
+    compile group: 'org.jruby', name: 'jruby', version: '9.1.15.0'
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
-    implementation 'com.google.guava:guava:20.0'
-
-    // Use JUnit test framework
-    testImplementation 'junit:junit:4.12'
+    implementation group: 'com.couchbase.client', name: 'java-client', version: '2.5.4'
+    
+    // JRuby dependencies
+    jrubyExec "rubygems:colorize:0.7.7+"
+    jrubyExec group: 'rubygems', name: 'rspec', version: '3.+'
 }
-
+	
+task spec(type: JRubyExec, dependsOn: [build]) {
+  group 'JRuby'
+    description 'Execute the RSpecs in JRuby'
+    jrubyArgs "-S"
+    script 'rspec'
+    scriptArgs 'src/test/ruby/spec/cluster_spec.rb'
+    classpath = sourceSets.test.runtimeClasspath + buildscript.configurations.classpath
+}
