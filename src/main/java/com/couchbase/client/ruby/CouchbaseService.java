@@ -20,6 +20,16 @@ public class CouchbaseService implements BasicLibraryService {
 				return new Cluster(ruby, rubyClass);
 			}
 		}).defineAnnotatedMethods(Cluster.class);
+		couchbase.defineClassUnder("Bucket", runtime.getObject(), new ObjectAllocator() {
+			public IRubyObject allocate(Ruby ruby, RubyClass rubyClass) {
+				return new Bucket(ruby, rubyClass);
+			}
+		}).defineAnnotatedMethods(Bucket.class);
+		couchbase.defineClassUnder("Document", runtime.getObject(), new ObjectAllocator() {
+			public IRubyObject allocate(Ruby ruby, RubyClass rubyClass) {
+				return new Document(ruby, rubyClass);
+			}
+		}).defineAnnotatedMethods(Document.class);
 		return true;
 	}
 

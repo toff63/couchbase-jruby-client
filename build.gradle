@@ -47,6 +47,7 @@ dependencies {
     // JRuby dependencies
     jrubyExec "rubygems:colorize:0.7.7+"
     jrubyExec group: 'rubygems', name: 'rspec', version: '3.+'
+    jrubyExec group: 'rubygems', name: 'multi_json', version: '1.11.+'
 }
 	
 task spec(type: JRubyExec, dependsOn: [build]) {
@@ -54,6 +55,6 @@ task spec(type: JRubyExec, dependsOn: [build]) {
     description 'Execute the RSpecs in JRuby'
     jrubyArgs "-S"
     script 'rspec'
-    scriptArgs 'src/test/ruby/spec/cluster_spec.rb'
+    scriptArgs 'src/test/ruby/spec/bucket_spec.rb'
     classpath = sourceSets.test.runtimeClasspath + buildscript.configurations.classpath
 }

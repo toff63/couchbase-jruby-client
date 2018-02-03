@@ -5,9 +5,10 @@ RSpec.configure do |config|
   config.order = 'random'
   config.before :all, :cluster => true do
     @cluster = Couchbase::Cluster.new
+    @cluster.authenticate('Administrator', 'password')
   end
   config.after :all, :cluster => true do
-    @cluster.disconnect if @cluster
+    @cluster.disconnect(10) if @cluster
     @cluster = nil
   end
 end
