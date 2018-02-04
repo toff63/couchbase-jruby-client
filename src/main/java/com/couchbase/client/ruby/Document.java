@@ -36,6 +36,8 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
+import com.couchbase.client.java.document.RawJsonDocument;
+
 /**
  * @author Sergey Avseyev
  */
@@ -189,8 +191,8 @@ public class Document extends RubyObject {
         return instance_variable_get(context, ivTranscode).isTrue();
     }
     
-    public JDocument toJavaDocument(ThreadContext context){
+    public RawJsonDocument toJavaDocument(ThreadContext context){
         String content =  multiJsonModule.callMethod("dump", content(context)).asJavaString();
-    	return new JDocument(id(context), cas(context), expiry(context), content);
+    	return RawJsonDocument.create(id(context), expiry(context), content, cas(context));
     }
 }

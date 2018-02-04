@@ -30,6 +30,7 @@ public class CouchbaseService implements BasicLibraryService {
 				return new Document(ruby, rubyClass);
 			}
 		}).defineAnnotatedMethods(Document.class);
+
 		return true;
 	}
 

@@ -38,4 +38,23 @@ describe 'Couchbase::Bucket', cluster: true do
     expect(doc2.content).to eq({'name' => 'john2'})
     bucket.close
   end
+  
+  it 'should let you update data' do
+   bucket = @cluster.bucket
+    doc = Couchbase::Document.new('id-1', {'name' => 'john'})
+    doc2 = bucket.insert(doc)
+    doc3 = bucket.insert(doc2)
+    doc4 = bucket.get('id-1')
+    expect(doc3.cas).to eq(doc4.cas)
+    bucket.close
+  end
+  
+  it 'should let you create and increment counters' do
+   bucket = @cluster.bucket
+    doc = Couchbase::Document.new('id-counter', 1)
+    bucket.insert(doc)
+    doc1 = bucket.incr('id-counter', 1)
+    expect(doc1.content).to eq(2)
+    bucket.close
+  end
 end

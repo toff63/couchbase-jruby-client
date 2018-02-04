@@ -9,7 +9,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
-import org.jruby.RubyInteger;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyClass;
@@ -17,6 +17,7 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
+import com.couchbase.client.java.document.JsonLongDocument;
 import com.couchbase.client.java.document.RawJsonDocument;
 
 import rx.Observable;
@@ -72,9 +73,23 @@ public class Bucket extends RubyObject {
 	@JRubyMethod(name = "insert", required = 1)
 	public IRubyObject insert(ThreadContext context, IRubyObject document) {
 		assertDocumentType(context, document);
-		JDocument doc = ((com.couchbase.client.ruby.Document) document).toJavaDocument(context);
-		RawJsonDocument d = bucket.upsert(RawJsonDocument.create(doc.id(), doc.content()));
+		RawJsonDocument doc = ((com.couchbase.client.ruby.Document) document).toJavaDocument(context);
+		Function<RawJsonDocument, RawJsonDocument> insert = getInsert(doc.cas());
+		RawJsonDocument d = insert.apply(doc);
 		return new com.couchbase.client.ruby.Document(context.runtime, documentClass, d.id(), d.cas(), d.expiry(), d.content());
+	}
+
+
+	@JRubyMethod(name = "incr", required = 2)
+	public IRubyObject increment(ThreadContext context, RubyString key, IRubyObject rubyDelta) {
+		Long delta = ((RubyFixnum) rubyDelta).getLongValue();
+		JsonLongDocument d = bucket.counter(key.asJavaString(), delta);
+		return new com.couchbase.client.ruby.Document(context.runtime, documentClass, d.id(), d.cas(), d.expiry(), String.valueOf(d.content()));
+	}
+	
+	private Function<RawJsonDocument, RawJsonDocument> getInsert(long cas) {
+		if (cas == 0) return doc -> bucket.upsert(doc);
+		else return doc -> bucket.replace(doc);
 	}
 
 	private void assertDocumentType(ThreadContext context, IRubyObject document) {
@@ -87,6 +102,7 @@ public class Bucket extends RubyObject {
 	@JRubyMethod(name = "get", required = 1)
 	public IRubyObject get(ThreadContext context, RubyString id) {
 		RawJsonDocument json = bucket.get(id.asJavaString(), RawJsonDocument.class);
+		if (json == null) return context.nil;
 		return new com.couchbase.client.ruby.Document(context.runtime, documentClass, json.id(), json.cas(), json.expiry(), json.content());
 	}
 	
