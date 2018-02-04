@@ -50,11 +50,23 @@ dependencies {
     jrubyExec group: 'rubygems', name: 'multi_json', version: '1.11.+'
 }
 	
+task list {
+    doLast {
+        File srcDir
+
+        // Create a file collection using a closure
+        FileCollection collection = files { srcDir.listFiles() }
+
+        srcDir = file('src/test/ruby/spec/')
+        println "Contents of $srcDir.name"
+        collection.collect { relativePath(it) }.sort().each { println it }
+    }
+}
 task spec(type: JRubyExec, dependsOn: [build]) {
   group 'JRuby'
     description 'Execute the RSpecs in JRuby'
     jrubyArgs "-S"
     script 'rspec'
-    scriptArgs 'src/test/ruby/spec/bucket_spec.rb'
+    scriptArgs file('src/test/ruby/spec/')
     classpath = sourceSets.test.runtimeClasspath + buildscript.configurations.classpath
 }
