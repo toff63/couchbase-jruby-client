@@ -11,6 +11,17 @@ describe 'Couchbase::Bucket', cluster: true do
     bucket.close
   end
   
+  it 'should be able to insert data with expiry' do
+   bucket = @cluster.bucket
+    doc = Couchbase::Document.new(id: 'id-1', content: {'name' => 'john'}, ttl: 2)
+    p doc
+    doc2 = bucket.insert(doc)
+    sleep 4
+    doc3 = bucket.get('id-1')
+    p doc3
+    bucket.close
+  end
+  
   it 'should be able to get data' do
    bucket = @cluster.bucket
     doc = Couchbase::Document.new('id-1', {'name' => 'john'})

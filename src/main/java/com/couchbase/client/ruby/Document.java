@@ -70,12 +70,12 @@ public class Document extends RubyObject {
         ivId = runtime.newSymbol("@id");
         ivContent = runtime.newSymbol("@content");
         ivCas = runtime.newSymbol("@cas");
-        ivExpiry = runtime.newSymbol("@expiry");
+        ivExpiry = runtime.newSymbol("@ttl");
         ivTranscode = runtime.newSymbol("@transcode");
         symId = runtime.newSymbol("id");
         symContent = runtime.newSymbol("content");
         symCas = runtime.newSymbol("cas");
-        symExpiry = runtime.newSymbol("expiry");
+        symExpiry = runtime.newSymbol("ttl");
         symTranscode = runtime.newSymbol("transcode");
         initialize(runtime.getCurrentContext(),
                 new IRubyObject[]{
@@ -94,12 +94,12 @@ public class Document extends RubyObject {
         ivId = runtime.newSymbol("@id");
         ivContent = runtime.newSymbol("@content");
         ivCas = runtime.newSymbol("@cas");
-        ivExpiry = runtime.newSymbol("@expiry");
+        ivExpiry = runtime.newSymbol("@ttl");
         ivTranscode = runtime.newSymbol("@transcode");
         symId = runtime.newSymbol("id");
         symContent = runtime.newSymbol("content");
         symCas = runtime.newSymbol("cas");
-        symExpiry = runtime.newSymbol("expiry");
+        symExpiry = runtime.newSymbol("ttl");
         symTranscode = runtime.newSymbol("transcode");
         initialize(runtime.getCurrentContext(),
                 new IRubyObject[]{
