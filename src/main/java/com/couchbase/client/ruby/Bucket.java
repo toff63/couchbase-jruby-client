@@ -1,10 +1,13 @@
 package com.couchbase.client.ruby;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.jruby.Ruby;
+import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyObject;
@@ -16,12 +19,15 @@ import org.jruby.runtime.builtin.IRubyObject;
 
 import com.couchbase.client.java.document.RawJsonDocument;
 
+import rx.Observable;
+
 @JRubyClass(name = "Couchbase::Bucket")
 public class Bucket extends RubyObject {
 
 	private static final long serialVersionUID = 1L;
 	private com.couchbase.client.java.Bucket bucket;
 	private final RubyClass documentClass;
+	
 
 	public Bucket(final Ruby runtime, final RubyClass metaClass) {
 		this(runtime, metaClass,() -> null);
@@ -65,13 +71,17 @@ public class Bucket extends RubyObject {
 
 	@JRubyMethod(name = "insert", required = 1)
 	public IRubyObject insert(ThreadContext context, IRubyObject document) {
+		assertDocumentType(context, document);
+		JDocument doc = ((com.couchbase.client.ruby.Document) document).toJavaDocument(context);
+		RawJsonDocument d = bucket.upsert(RawJsonDocument.create(doc.id(), doc.content()));
+		return new com.couchbase.client.ruby.Document(context.runtime, documentClass, d.id(), d.cas(), d.expiry(), d.content());
+	}
+
+	private void assertDocumentType(ThreadContext context, IRubyObject document) {
 		Boolean isDocument = documentClass.isInstance(document);
 		if (!isDocument) {
 			throw context.getRuntime().newTypeError("Expected Couchbase::Document or descendant");
 		}
-		JDocument doc = ((com.couchbase.client.ruby.Document) document).toJavaDocument(context);
-		RawJsonDocument d = bucket.upsert(RawJsonDocument.create(doc.id(), doc.content()));
-		return new com.couchbase.client.ruby.Document(context.runtime, documentClass, d.id(), d.cas(), d.expiry(), d.content());
 	}
 	
 	@JRubyMethod(name = "get", required = 1)
@@ -79,6 +89,20 @@ public class Bucket extends RubyObject {
 		RawJsonDocument json = bucket.get(id.asJavaString(), RawJsonDocument.class);
 		return new com.couchbase.client.ruby.Document(context.runtime, documentClass, json.id(), json.cas(), json.expiry(), json.content());
 	}
+	
+	@JRubyMethod(name = "mget", required = 1)
+	public IRubyObject mget(ThreadContext context, IRubyObject rubyIds) {
+		@SuppressWarnings("unchecked")
+		List<String> ids = (List<String>) rubyIds;
+		List<Document> docs = Observable.from(ids)
+				.map(id -> bucket.get(id, RawJsonDocument.class))
+				.map(json -> new com.couchbase.client.ruby.Document(context.runtime, documentClass, json.id(), json.cas(), json.expiry(), json.content()))
+				.toList()
+				.toBlocking()
+				.single();
+		return RubyArray.newArray(context.runtime,  docs);
+	}
+
 
 	@JRubyMethod(name = "close")
 	public IRubyObject close(final ThreadContext context) {

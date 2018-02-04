@@ -55,15 +55,7 @@ public class Cluster extends RubyObject {
         }
         return context.nil;
     }
-    
-    public static void main(String[] args) {
-    	CouchbaseCluster c = CouchbaseCluster.create();
-    	c.authenticate("Administrator", "password");
-    	String password = null;
-		com.couchbase.client.java.Bucket b = c.openBucket("default");
-		b.close();
-	}
-    
+
     @JRubyMethod(name = "authenticate", required = 2)
     public IRubyObject authenticate(ThreadContext context, RubyString userName, RubyString password) {
     	cluster.authenticate(userName.asJavaString(), password.asJavaString());

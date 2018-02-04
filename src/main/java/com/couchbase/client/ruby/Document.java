@@ -26,6 +26,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyHash;
+import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -53,13 +54,19 @@ public class Document extends RubyObject {
     private final RubySymbol symCas;
     private final RubySymbol symExpiry;
     private final RubySymbol symTranscode;
-
+    private final RubyModule multiJsonModule;
+    private final RubyModule parseErrorClass;
+    
     public Document(Ruby runtime, RubyClass metaClass) {
-        this(runtime, metaClass, null, 0, 0, null);
+        this(runtime, metaClass, null, 0, 0, (IRubyObject) null);
     }
-
-    public Document(Ruby runtime, RubyClass metaClass, String id, long cas, int expiry, String content) {
+    
+    public Document(Ruby runtime, RubyClass metaClass, String id, long cas, int expiry, String json) {
         super(runtime, metaClass);
+        multiJsonModule = runtime.getModule("MultiJson");
+        parseErrorClass = multiJsonModule.getClass("ParseError");
+        IRubyObject content =  multiJsonModule.callMethod("load", RubyString.newString(runtime, json));
+        
         ivId = runtime.newSymbol("@id");
         ivContent = runtime.newSymbol("@content");
         ivCas = runtime.newSymbol("@cas");
@@ -73,7 +80,31 @@ public class Document extends RubyObject {
         initialize(runtime.getCurrentContext(),
                 new IRubyObject[]{
                         id == null ? runtime.getNil() : RubyString.newString(runtime, id),
-                        content == null ? runtime.getNil() : RubyString.newString(runtime, content),
+                        content == null ? runtime.getNil() : content,
+                        RubyFixnum.newFixnum(runtime, cas),
+                        RubyFixnum.newFixnum(runtime, expiry),
+                        runtime.getTrue()
+                });    }
+    
+    public Document(Ruby runtime, RubyClass metaClass, String id, long cas, int expiry, IRubyObject content) {
+        super(runtime, metaClass);
+        multiJsonModule = runtime.getModule("MultiJson");
+        parseErrorClass = multiJsonModule.getClass("ParseError");
+        
+        ivId = runtime.newSymbol("@id");
+        ivContent = runtime.newSymbol("@content");
+        ivCas = runtime.newSymbol("@cas");
+        ivExpiry = runtime.newSymbol("@expiry");
+        ivTranscode = runtime.newSymbol("@transcode");
+        symId = runtime.newSymbol("id");
+        symContent = runtime.newSymbol("content");
+        symCas = runtime.newSymbol("cas");
+        symExpiry = runtime.newSymbol("expiry");
+        symTranscode = runtime.newSymbol("transcode");
+        initialize(runtime.getCurrentContext(),
+                new IRubyObject[]{
+                        id == null ? runtime.getNil() : RubyString.newString(runtime, id),
+                        content == null ? runtime.getNil() : content,
                         RubyFixnum.newFixnum(runtime, cas),
                         RubyFixnum.newFixnum(runtime, expiry),
                         runtime.getTrue()
@@ -116,6 +147,10 @@ public class Document extends RubyObject {
                 instance_variable_set(ivTranscode, args[4]);
             }
         }
+        metaClass.addReadWriteAttribute(context, "id");
+        metaClass.addReadWriteAttribute(context, "content");
+        metaClass.addReadWriteAttribute(context, "cas");
+        metaClass.addReadWriteAttribute(context, "expiry");
         return context.nil;
     }
 
@@ -128,8 +163,8 @@ public class Document extends RubyObject {
         }
     }
 
-    public RubyString content(ThreadContext context) {
-        return (RubyString) instance_variable_get(context, ivContent);
+    public IRubyObject content(ThreadContext context) {
+    	return instance_variable_get(context, ivContent);
     }
 
     public long cas(ThreadContext context) {
@@ -155,6 +190,7 @@ public class Document extends RubyObject {
     }
     
     public JDocument toJavaDocument(ThreadContext context){
-    	return new JDocument(id(context), cas(context), expiry(context), content(context).asJavaString());
+        String content =  multiJsonModule.callMethod("dump", content(context)).asJavaString();
+    	return new JDocument(id(context), cas(context), expiry(context), content);
     }
 }
